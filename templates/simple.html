@@ -24,21 +24,54 @@
             background: radial-gradient(1200px 600px at 20% -5%, #1a1a1a 0%, var(--bg) 55%);
             color: var(--text);
             font-family: 'Space Grotesk', sans-serif;
-            padding: 10px;
+            padding: 12px;
             height: 100vh;
             overflow: hidden;
             display: flex;
             flex-direction: column;
         }
-        
-        h1 {
-            text-align: center;
-            margin-bottom: 8px;
-            font-size: 24px;
-            color: var(--text);
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 0 auto 8px;
+            width: 100%;
+            max-width: 1600px;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: linear-gradient(180deg, #121212 0%, #0d0d0d 100%);
             flex: 0 0 auto;
+        }
+
+        .brand {
+            font-size: 18px;
+            color: var(--text);
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .meta-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .chip {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            padding: 6px 9px;
+            border: 1px solid #4b4b4b;
+            border-radius: 999px;
+            color: #d8d8d8;
+            background: #111;
+        }
+
+        .chip strong {
+            color: #fff;
         }
         
         .grid {
@@ -209,6 +242,17 @@
             justify-content: center;
             flex: 0 0 auto;
         }
+
+        .main-toolbar {
+            max-width: 1000px;
+            margin: 0 auto 8px;
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: var(--panel);
+            justify-content: space-between;
+        }
         
         .nav-btn {
             background: transparent;
@@ -342,17 +386,33 @@
         }
 
         @media (max-height: 900px) {
-            h1 { font-size: 20px; margin-bottom: 6px; }
+            .topbar { padding: 8px 10px; }
+            .brand { font-size: 16px; }
             .panel { padding: 6px; margin-bottom: 6px; }
             .field { padding: 6px; }
             .button-row { padding: 6px; }
             .camera-header { padding: 6px; }
             .camera-controls { padding: 4px; }
         }
+
+        @media (max-width: 900px) {
+            .topbar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+        }
     </style>
 </head>
 <body>
-    <h1>CCTV Viewer</h1>
+    <div class="topbar">
+        <div class="brand">CCTV Viewer</div>
+        <div class="meta-row">
+            <div class="chip">Cameras: <strong id="camera-count">0</strong></div>
+            <div class="chip">Online: <strong id="online-count">0</strong></div>
+            <div class="chip">Time: <strong id="clock">--:--:--</strong></div>
+        </div>
+    </div>
 
     <div class="panel">
         <div class="panel-title">Add Camera</div>
@@ -373,7 +433,7 @@
 
     <div id="msg" class="msg"></div>
     
-    <div class="button-row">
+    <div class="button-row main-toolbar">
         <button class="nav-btn" onclick="location.reload()">Refresh</button>
         <span class="compact-text" style="color: #cfcfcf; padding: 0 10px;" id="status">Connecting...</span>
     </div>
@@ -403,11 +463,22 @@
                 const res = await fetch('/api/cameras');
                 cameras = await res.json();
                 render();
-                document.getElementById('status').textContent = `✓ ${cameras.length} cameras`;
+                const online = cameras.filter(c => c.connected).length;
+                document.getElementById('status').textContent = `${online}/${cameras.length} online`;
+                document.getElementById('camera-count').textContent = cameras.length;
+                document.getElementById('online-count').textContent = online;
             } catch (e) {
                 console.error(e);
                 document.getElementById('status').textContent = '✗ Error';
             }
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            const ss = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('clock').textContent = `${hh}:${mm}:${ss}`;
         }
         
         function applyGridLayout(count) {
@@ -608,7 +679,9 @@
         
         loadSettings();
         loadCameras();
+        updateClock();
         setInterval(loadCameras, 5000);
+        setInterval(updateClock, 1000);
         window.addEventListener('resize', () => applyGridLayout(cameras.length));
     </script>
 </body>
