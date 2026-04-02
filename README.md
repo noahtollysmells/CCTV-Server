@@ -10,14 +10,15 @@ cd CCTV-Server
 bash start.sh
 ```
 
-## You'll be asked:
+## Recording
 
-1. **Where to save recordings** (press Enter for `/recordings`)
+- Recordings always save to your local Desktop folder: `Desktop/CCTV-Recordings`
 
 ## Then:
 - Open browser: `http://your-server-ip:5000`
 - Add camera name + URL in the **Add Camera** box
 - For RTSP cameras, `admin/admin` is auto-added if credentials are missing
+- Recording badge flashes `REC` in the top-right while recording
 - Click any camera to expand
 - Click **REC** to record
 - Done

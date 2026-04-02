@@ -18,6 +18,16 @@ config = {}
 recordings = {}
 
 
+def get_default_recordings_path():
+    desktop = os.path.join(os.path.expanduser('~'), 'Desktop')
+    if not os.path.isdir(desktop):
+        desktop = os.path.expanduser('~')
+    return os.path.join(desktop, 'CCTV-Recordings')
+
+
+DEFAULT_RECORDINGS_PATH = get_default_recordings_path()
+
+
 def save_config():
     with open('config.json', 'w') as f:
         json.dump(config, f, indent=2)
@@ -50,6 +60,8 @@ class CameraStream:
         self.is_connected = False
         self.is_recording = False
         self.writer = None
+        self.record_filename = None
+        self.record_fps = 20
         self.connect()
     
     def connect(self):
@@ -72,6 +84,8 @@ class CameraStream:
                 ret, frame = self.cap.read()
                 if ret:
                     self.last_frame = frame.copy()
+                    if self.is_recording and self.writer is None:
+                        self._create_writer_from_frame(frame)
                     if self.is_recording and self.writer:
                         self.writer.write(frame)
                 else:
@@ -93,30 +107,47 @@ class CameraStream:
             return None
     
     def start_recording(self):
-        if not self.record_path or self.is_recording:
+        if self.is_recording:
             return False
         try:
+            self.record_path = DEFAULT_RECORDINGS_PATH
             os.makedirs(self.record_path, exist_ok=True)
             timestamp = time.strftime('%Y%m%d_%H%M%S')
-            filename = os.path.join(self.record_path, f"{self.name}_{timestamp}.mp4")
-            
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            fps = 30
-            size = (1280, 720)
-            
-            self.writer = cv2.VideoWriter(filename, fourcc, fps, size)
+            safe_name = ''.join(ch if ch.isalnum() or ch in ('-', '_', ' ') else '_' for ch in self.name).strip().replace(' ', '_')
+            self.record_filename = os.path.join(self.record_path, f"{safe_name}_{timestamp}.mp4")
+            try:
+                cap_fps = float(self.cap.get(cv2.CAP_PROP_FPS)) if self.cap else 0
+            except Exception:
+                cap_fps = 0
+            self.record_fps = cap_fps if cap_fps and cap_fps > 1 else 20
             self.is_recording = True
-            print(f"⏺️ Recording {self.name} to {filename}")
+            if self.last_frame is not None:
+                self._create_writer_from_frame(self.last_frame)
+            print(f"⏺️ Recording {self.name} to {self.record_filename}")
             return True
         except Exception as e:
             print(f"Record error {self.name}: {e}")
             return False
+
+    def _create_writer_from_frame(self, frame):
+        if self.writer is not None:
+            return
+        if frame is None or self.record_filename is None:
+            return
+        h, w = frame.shape[:2]
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        self.writer = cv2.VideoWriter(self.record_filename, fourcc, self.record_fps, (w, h))
+        if not self.writer or not self.writer.isOpened():
+            self.writer = None
+            self.is_recording = False
+            print(f"❌ Failed to open writer for {self.name}")
     
     def stop_recording(self):
         if self.writer:
             self.writer.release()
             self.writer = None
         self.is_recording = False
+        self.record_filename = None
         print(f"⏹️ Stopped recording {self.name}")
 
     def release(self):
@@ -134,8 +165,10 @@ def load_config():
     try:
         with open('config.json') as f:
             config = json.load(f)
-        
-        record_path = config.get('recordings', '/recordings')
+
+        config['recordings'] = DEFAULT_RECORDINGS_PATH
+        save_config()
+        record_path = DEFAULT_RECORDINGS_PATH
         
         for cam in config.get('cameras', []):
             cam_id = cam['id']
@@ -177,7 +210,7 @@ def add_camera():
     while new_id in existing_ids:
         new_id += 1
 
-    record_path = config.get('recordings', '/recordings')
+    record_path = DEFAULT_RECORDINGS_PATH
     cameras[new_id] = CameraStream(new_id, name, url, record_path)
 
     config.setdefault('cameras', []).append({
@@ -206,25 +239,19 @@ def delete_camera(cam_id):
 
 @app.route('/api/settings/recordings', methods=['POST'])
 def set_recordings_path():
-    data = request.get_json(silent=True) or {}
-    path = (data.get('path') or '').strip()
-
-    if not path:
-        return jsonify({'error': 'Path is required'}), 400
-
-    os.makedirs(path, exist_ok=True)
-    config['recordings'] = path
+    os.makedirs(DEFAULT_RECORDINGS_PATH, exist_ok=True)
+    config['recordings'] = DEFAULT_RECORDINGS_PATH
 
     for camera in cameras.values():
-        camera.record_path = path
+        camera.record_path = DEFAULT_RECORDINGS_PATH
 
     save_config()
-    return jsonify({'recordings': path})
+    return jsonify({'recordings': DEFAULT_RECORDINGS_PATH})
 
 
 @app.route('/api/settings', methods=['GET'])
 def get_settings():
-    return jsonify({'recordings': config.get('recordings', '/recordings')})
+    return jsonify({'recordings': DEFAULT_RECORDINGS_PATH})
 
 
 @app.route('/api/stream/<int:cam_id>')

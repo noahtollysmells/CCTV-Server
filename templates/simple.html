@@ -88,6 +88,27 @@
             height: 100%;
             object-fit: cover;
         }
+
+        .recording-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #ff1a1a;
+            color: #fff;
+            border: 1px solid #fff;
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: bold;
+            border-radius: 3px;
+            animation: rec-blink 1s steps(1, end) infinite;
+            z-index: 3;
+        }
+
+        @keyframes rec-blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.2; }
+            100% { opacity: 1; }
+        }
         
         .loading {
             color: #0f0;
@@ -275,10 +296,10 @@
     </div>
 
     <div class="panel">
-        <div class="panel-title">Recording Folder</div>
+        <div class="panel-title">Recording Folder (Auto)</div>
         <div class="panel-row">
-            <input id="recording-path" class="field" placeholder="/recordings or C:/cctv-recordings">
-            <button class="nav-btn" onclick="saveRecordingPath()">Save Folder</button>
+            <input id="recording-path" class="field" readonly>
+            <button class="nav-btn" onclick="saveRecordingPath()">Use Desktop Folder</button>
         </div>
     </div>
 
@@ -336,6 +357,7 @@
                     </div>
                     <div class="stream-container" onclick="event.stopPropagation(); openFullscreen(${idx})">
                         <img src="/api/stream/${cam.id}?t=${Date.now()}" alt="${cam.name}" onerror="this.style.display='none'">
+                        ${cam.recording ? '<div class="recording-badge">REC</div>' : ''}
                     </div>
                     <div class="camera-controls">
                         <button class="record-btn ${cam.recording ? 'recording' : ''}" onclick="event.stopPropagation(); toggleRecord(${cam.id})">
@@ -418,23 +440,18 @@
         }
 
         async function saveRecordingPath() {
-            const path = document.getElementById('recording-path').value.trim();
-            if (!path) {
-                showMsg('Enter recording folder path.', true);
-                return;
-            }
-
             try {
                 const res = await fetch('/api/settings/recordings', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({path})
+                    body: JSON.stringify({})
                 });
                 const data = await res.json();
                 if (!res.ok) {
                     showMsg(data.error || 'Failed to save folder.', true);
                     return;
                 }
+                document.getElementById('recording-path').value = data.recordings || '';
                 showMsg(`Recording folder saved: ${data.recordings}`);
             } catch (e) {
                 console.error(e);
