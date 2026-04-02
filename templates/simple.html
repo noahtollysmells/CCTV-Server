@@ -73,6 +73,18 @@
         .chip strong {
             color: #fff;
         }
+
+        .fit-select {
+            background: #111;
+            color: #f2f2f2;
+            border: 1px solid #4b4b4b;
+            border-radius: 999px;
+            padding: 5px 8px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            outline: none;
+            cursor: pointer;
+        }
         
         .grid {
             display: grid;
@@ -438,6 +450,12 @@
             <div class="chip">Cameras: <strong id="camera-count">0</strong></div>
             <div class="chip">Online: <strong id="online-count">0</strong></div>
             <div class="chip">Time: <strong id="clock">--:--:--</strong></div>
+            <select id="fit-mode" class="fit-select" onchange="setFitMode(this.value)">
+                <option value="auto">Fit: Auto</option>
+                <option value="normal">Fit: Normal</option>
+                <option value="dense">Fit: Dense</option>
+                <option value="ultra">Fit: Ultra</option>
+            </select>
         </div>
     </div>
 
@@ -484,6 +502,7 @@
     <script>
         let cameras = [];
         let currentIndex = -1;
+        let fitMode = 'auto';
         
         async function loadCameras() {
             try {
@@ -548,6 +567,19 @@
 
         function applyDensityMode(count) {
             document.body.classList.remove('dense', 'ultra-dense');
+
+            if (fitMode === 'normal') {
+                return;
+            }
+            if (fitMode === 'dense') {
+                document.body.classList.add('dense');
+                return;
+            }
+            if (fitMode === 'ultra') {
+                document.body.classList.add('ultra-dense');
+                return;
+            }
+
             if (count >= 16) {
                 document.body.classList.add('ultra-dense');
                 return;
@@ -555,6 +587,13 @@
             if (count >= 9) {
                 document.body.classList.add('dense');
             }
+        }
+
+        function setFitMode(mode) {
+            fitMode = mode || 'auto';
+            applyDensityMode(cameras.length);
+            applyGridLayout(cameras.length);
+            showMsg(`Fit mode set to ${fitMode}.`);
         }
 
         function render() {
@@ -721,7 +760,10 @@
         updateClock();
         setInterval(loadCameras, 5000);
         setInterval(updateClock, 1000);
-        window.addEventListener('resize', () => applyGridLayout(cameras.length));
+        window.addEventListener('resize', () => {
+            applyDensityMode(cameras.length);
+            applyGridLayout(cameras.length);
+        });
     </script>
 </body>
 </html>
