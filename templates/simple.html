@@ -85,6 +85,9 @@
             min-height: 0;
             overflow: hidden;
         }
+
+        .dense .grid { gap: 6px; }
+        .ultra-dense .grid { gap: 4px; }
         
         .camera {
             border: 1px solid var(--line);
@@ -113,6 +116,9 @@
             justify-content: space-between;
             align-items: center;
         }
+
+        .dense .camera-header { padding: 6px 8px; }
+        .ultra-dense .camera-header { padding: 4px 6px; }
         
         .camera-name {
             font-size: 14px;
@@ -120,6 +126,9 @@
             color: var(--text);
             letter-spacing: 0.02em;
         }
+
+        .dense .camera-name { font-size: 12px; }
+        .ultra-dense .camera-name { font-size: 11px; }
         
         .status {
             width: 9px;
@@ -165,6 +174,9 @@
             animation: rec-blink 0.9s ease-in-out infinite;
             z-index: 3;
         }
+
+        .dense .recording-badge { top: 6px; right: 6px; padding: 3px 6px; font-size: 9px; }
+        .ultra-dense .recording-badge { top: 4px; right: 4px; padding: 2px 5px; font-size: 8px; }
 
         @keyframes rec-blink {
             0% { opacity: 1; }
@@ -280,6 +292,9 @@
             background: var(--panel-2);
             border-top: 1px solid var(--line);
         }
+
+        .dense .camera-controls { gap: 4px; padding: 4px; }
+        .ultra-dense .camera-controls { gap: 3px; padding: 3px; }
         
         .record-btn {
             flex: 1;
@@ -292,6 +307,18 @@
             font-family: 'IBM Plex Mono', monospace;
             border-radius: 6px;
             transition: all 0.2s;
+        }
+
+        .dense .record-btn,
+        .dense .danger-btn {
+            padding: 4px;
+            font-size: 10px;
+        }
+
+        .ultra-dense .record-btn,
+        .ultra-dense .danger-btn {
+            padding: 3px;
+            font-size: 9px;
         }
         
         .record-btn:hover {
@@ -519,6 +546,17 @@
             grid.style.gridTemplateRows = `repeat(${bestRows}, minmax(0, 1fr))`;
         }
 
+        function applyDensityMode(count) {
+            document.body.classList.remove('dense', 'ultra-dense');
+            if (count >= 16) {
+                document.body.classList.add('ultra-dense');
+                return;
+            }
+            if (count >= 9) {
+                document.body.classList.add('dense');
+            }
+        }
+
         function render() {
             const grid = document.getElementById('cameras');
             grid.innerHTML = '';
@@ -547,6 +585,7 @@
                 grid.appendChild(div);
             });
 
+            applyDensityMode(cameras.length);
             applyGridLayout(cameras.length);
         }
 
