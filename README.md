@@ -42,4 +42,10 @@ http://192.168.1.51:8080/?action=stream
 
 ---
 
+---
+
+## 🪟 Windows Setup?
+
+See [WINDOWS_SETUP.md](WINDOWS_SETUP.md) for Windows instructions.
+
 **That's it.**
