@@ -1,6 +1,6 @@
 # 🎥 CCTV Server
 
-**One command. Two questions. Done.**
+**One command. Open browser. Add cameras there. Done.**
 
 ## Run
 
@@ -12,11 +12,11 @@ bash start.sh
 
 ## You'll be asked:
 
-1. **Camera URLs** (one per line, press Enter twice)
-2. **Where to save recordings** (press Enter for `/recordings`)
+1. **Where to save recordings** (press Enter for `/recordings`)
 
 ## Then:
 - Open browser: `http://your-server-ip:5000`
+- Add camera name + URL in the **Add Camera** box
 - Click any camera to expand
 - Click **REC** to record
 - Done

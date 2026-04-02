@@ -203,10 +203,86 @@
             border-color: #ff3333;
             color: #fff;
         }
+
+        .panel {
+            max-width: 1000px;
+            margin: 0 auto 15px;
+            border: 2px solid #0f0;
+            background: #111;
+            padding: 10px;
+        }
+
+        .panel-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .panel-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .field {
+            background: #000;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 7px;
+            min-width: 220px;
+            flex: 1;
+            font-family: monospace;
+        }
+
+        .danger-btn {
+            flex: 1;
+            background: transparent;
+            border: 1px solid #ff3333;
+            color: #ff3333;
+            padding: 5px;
+            cursor: pointer;
+            font-size: 11px;
+            border-radius: 2px;
+            transition: all 0.2s;
+        }
+
+        .danger-btn:hover {
+            background: #ff3333;
+            color: #fff;
+        }
+
+        .msg {
+            max-width: 1000px;
+            margin: 0 auto 15px;
+            min-height: 20px;
+            color: #0f0;
+        }
+
+        .msg.error {
+            color: #ff6666;
+        }
     </style>
 </head>
 <body>
     <h1>📹 CCTV Viewer</h1>
+
+    <div class="panel">
+        <div class="panel-title">Add Camera</div>
+        <div class="panel-row">
+            <input id="camera-name" class="field" placeholder="Camera Name (Example: Front Door)">
+            <input id="camera-url" class="field" placeholder="Camera URL (rtsp://... or http://...)">
+            <button class="nav-btn" onclick="addCamera()">+ Add Camera</button>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-title">Recording Folder</div>
+        <div class="panel-row">
+            <input id="recording-path" class="field" placeholder="/recordings or C:/cctv-recordings">
+            <button class="nav-btn" onclick="saveRecordingPath()">Save Folder</button>
+        </div>
+    </div>
+
+    <div id="msg" class="msg"></div>
     
     <div class="button-row">
         <button class="nav-btn" onclick="location.reload()">🔄 Refresh</button>
@@ -265,11 +341,105 @@
                         <button class="record-btn ${cam.recording ? 'recording' : ''}" onclick="event.stopPropagation(); toggleRecord(${cam.id})">
                             ${cam.recording ? '⏹️ STOP' : '⏺️ REC'}
                         </button>
+                        <button class="danger-btn" onclick="event.stopPropagation(); deleteCamera(${cam.id})">🗑 DEL</button>
                     </div>
                 `;
                 
                 grid.appendChild(div);
             });
+        }
+
+        async function loadSettings() {
+            try {
+                const res = await fetch('/api/settings');
+                const data = await res.json();
+                document.getElementById('recording-path').value = data.recordings || '';
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function showMsg(text, isError = false) {
+            const msg = document.getElementById('msg');
+            msg.textContent = text;
+            msg.className = isError ? 'msg error' : 'msg';
+        }
+
+        async function addCamera() {
+            const nameInput = document.getElementById('camera-name');
+            const urlInput = document.getElementById('camera-url');
+            const name = nameInput.value.trim();
+            const url = urlInput.value.trim();
+
+            if (!name || !url) {
+                showMsg('Enter camera name and URL.', true);
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/cameras', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name, url})
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    showMsg(data.error || 'Failed to add camera.', true);
+                    return;
+                }
+                nameInput.value = '';
+                urlInput.value = '';
+                showMsg('Camera added.');
+                await loadCameras();
+            } catch (e) {
+                console.error(e);
+                showMsg('Failed to add camera.', true);
+            }
+        }
+
+        async function deleteCamera(camId) {
+            if (!confirm('Delete this camera?')) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/cameras/${camId}`, { method: 'DELETE' });
+                if (!res.ok) {
+                    const data = await res.json();
+                    showMsg(data.error || 'Failed to delete camera.', true);
+                    return;
+                }
+                showMsg('Camera deleted.');
+                await loadCameras();
+            } catch (e) {
+                console.error(e);
+                showMsg('Failed to delete camera.', true);
+            }
+        }
+
+        async function saveRecordingPath() {
+            const path = document.getElementById('recording-path').value.trim();
+            if (!path) {
+                showMsg('Enter recording folder path.', true);
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/settings/recordings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({path})
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    showMsg(data.error || 'Failed to save folder.', true);
+                    return;
+                }
+                showMsg(`Recording folder saved: ${data.recordings}`);
+            } catch (e) {
+                console.error(e);
+                showMsg('Failed to save folder.', true);
+            }
         }
         
         async function toggleRecord(camId) {
@@ -311,6 +481,7 @@
             openFullscreen(currentIndex);
         }
         
+        loadSettings();
         loadCameras();
         setInterval(loadCameras, 5000);
     </script>

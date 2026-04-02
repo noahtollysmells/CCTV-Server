@@ -17,6 +17,11 @@ config = {}
 recordings = {}
 
 
+def save_config():
+    with open('config.json', 'w') as f:
+        json.dump(config, f, indent=2)
+
+
 class CameraStream:
     def __init__(self, cam_id, name, url, record_path=None):
         self.id = cam_id
@@ -97,6 +102,15 @@ class CameraStream:
         self.is_recording = False
         print(f"⏹️ Stopped recording {self.name}")
 
+    def release(self):
+        if self.writer:
+            self.writer.release()
+            self.writer = None
+        if self.cap:
+            self.cap.release()
+            self.cap = None
+        self.is_connected = False
+
 
 def load_config():
     global cameras, config
@@ -130,6 +144,70 @@ def get_cameras():
             'recording': cam.is_recording
         })
     return jsonify(cam_list)
+
+
+@app.route('/api/cameras', methods=['POST'])
+def add_camera():
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip()
+    url = (data.get('url') or '').strip()
+
+    if not name or not url:
+        return jsonify({'error': 'Name and URL are required'}), 400
+
+    existing_ids = set(cameras.keys())
+    new_id = 0
+    while new_id in existing_ids:
+        new_id += 1
+
+    record_path = config.get('recordings', '/recordings')
+    cameras[new_id] = CameraStream(new_id, name, url, record_path)
+
+    config.setdefault('cameras', []).append({
+        'id': new_id,
+        'name': name,
+        'url': url
+    })
+    save_config()
+
+    return jsonify({'id': new_id, 'name': name, 'url': url})
+
+
+@app.route('/api/cameras/<int:cam_id>', methods=['DELETE'])
+def delete_camera(cam_id):
+    camera = cameras.pop(cam_id, None)
+    if not camera:
+        return jsonify({'error': 'Camera not found'}), 404
+
+    camera.stop_recording()
+    camera.release()
+
+    config['cameras'] = [cam for cam in config.get('cameras', []) if cam.get('id') != cam_id]
+    save_config()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/settings/recordings', methods=['POST'])
+def set_recordings_path():
+    data = request.get_json(silent=True) or {}
+    path = (data.get('path') or '').strip()
+
+    if not path:
+        return jsonify({'error': 'Path is required'}), 400
+
+    os.makedirs(path, exist_ok=True)
+    config['recordings'] = path
+
+    for camera in cameras.values():
+        camera.record_path = path
+
+    save_config()
+    return jsonify({'recordings': path})
+
+
+@app.route('/api/settings', methods=['GET'])
+def get_settings():
+    return jsonify({'recordings': config.get('recordings', '/recordings')})
 
 
 @app.route('/api/stream/<int:cam_id>')
