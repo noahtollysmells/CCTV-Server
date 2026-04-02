@@ -5,8 +5,8 @@
 ## Run
 
 ```bash
-git clone https://github.com/noahtollysmells/cctv-server.git
-cd cctv-server
+git clone https://github.com/noahtollysmells/CCTV-Server.git
+cd CCTV-Server
 bash start.sh
 ```
 
