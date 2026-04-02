@@ -17,6 +17,7 @@ bash start.sh
 ## Then:
 - Open browser: `http://your-server-ip:5000`
 - Add camera name + URL in the **Add Camera** box
+- For RTSP cameras, `admin/admin` is auto-added if credentials are missing
 - Click any camera to expand
 - Click **REC** to record
 - Done
@@ -33,6 +34,11 @@ rtsp://192.168.1.50:8554/stream
 **eBay Camera:**
 ```
 rtsp://admin:admin@192.168.1.52:554/stream
+```
+
+You can also enter without credentials and it will use `admin/admin` automatically:
+```
+rtsp://192.168.1.52:554/stream
 ```
 
 **HTTP Camera:**

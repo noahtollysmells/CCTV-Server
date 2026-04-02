@@ -8,6 +8,7 @@ import cv2
 import threading
 import time
 import os
+from urllib.parse import urlsplit, urlunsplit
 
 app = Flask(__name__)
 CORS(app)
@@ -22,11 +23,27 @@ def save_config():
         json.dump(config, f, indent=2)
 
 
+def normalize_camera_url(url):
+    raw = (url or '').strip()
+    if not raw:
+        return raw
+
+    # Allow entering only host/path and assume RTSP with default credentials.
+    if '://' not in raw:
+        return f"rtsp://admin:admin@{raw.lstrip('/')}"
+
+    parsed = urlsplit(raw)
+    if parsed.scheme.lower() == 'rtsp' and '@' not in parsed.netloc:
+        return urlunsplit((parsed.scheme, f"admin:admin@{parsed.netloc}", parsed.path, parsed.query, parsed.fragment))
+
+    return raw
+
+
 class CameraStream:
     def __init__(self, cam_id, name, url, record_path=None):
         self.id = cam_id
         self.name = name
-        self.url = url
+        self.url = normalize_camera_url(url)
         self.record_path = record_path
         self.cap = None
         self.last_frame = None
