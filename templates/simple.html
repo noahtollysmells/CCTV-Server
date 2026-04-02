@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCTV Cameras</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background: #000;
+            color: #0f0;
+            font-family: monospace;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 32px;
+            color: #0f0;
+            text-shadow: 0 0 10px #0f0;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 15px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        .camera {
+            border: 2px solid #0f0;
+            background: #111;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            border-radius: 5px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+            transition: all 0.3s;
+        }
+        
+        .camera:hover {
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.7);
+            transform: scale(1.02);
+        }
+        
+        .camera-header {
+            background: #1a1a1a;
+            padding: 10px;
+            border-bottom: 2px solid #0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .camera-name {
+            font-size: 14px;
+            font-weight: bold;
+            color: #0f0;
+        }
+        
+        .status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff0000;
+        }
+        
+        .status.connected {
+            background: #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+        }
+        
+        .stream-container {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        .stream-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .loading {
+            color: #0f0;
+            font-size: 12px;
+            position: absolute;
+        }
+        
+        .fullscreen {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+            z-index: 1000;
+            flex-direction: column;
+        }
+        
+        .fullscreen.active {
+            display: flex;
+        }
+        
+        .fs-header {
+            background: #1a1a1a;
+            padding: 15px;
+            border-bottom: 2px solid #0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .fs-title {
+            font-size: 24px;
+            color: #0f0;
+        }
+        
+        .fs-close {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 3px;
+        }
+        
+        .fs-stream {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+        }
+        
+        .fs-stream img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        .button-row {
+            background: #1a1a1a;
+            padding: 10px;
+            border-top: 2px solid #0f0;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .nav-btn {
+            background: transparent;
+            color: #0f0;
+            border: 2px solid #0f0;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-family: monospace;
+            border-radius: 3px;
+            transition: all 0.3s;
+        }
+        
+        .nav-btn:hover {
+            background: #0f0;
+            color: #000;
+        }
+        
+        .camera-controls {
+            display: flex;
+            gap: 5px;
+            padding: 5px;
+            background: #2a2a2a;
+        }
+        
+        .record-btn {
+            flex: 1;
+            background: transparent;
+            border: 1px solid #0f0;
+            color: #0f0;
+            padding: 5px;
+            cursor: pointer;
+            font-size: 11px;
+            border-radius: 2px;
+            transition: all 0.2s;
+        }
+        
+        .record-btn:hover {
+            background: #0f0;
+            color: #000;
+        }
+        
+        .record-btn.recording {
+            background: #ff3333;
+            border-color: #ff3333;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <h1>📹 CCTV Viewer</h1>
+    
+    <div class="button-row">
+        <button class="nav-btn" onclick="location.reload()">🔄 Refresh</button>
+        <span style="color: #0f0; padding: 0 10px;" id="status">Connecting...</span>
+    </div>
+    
+    <div class="grid" id="cameras"></div>
+    
+    <div class="fullscreen" id="fullscreen">
+        <div class="fs-header">
+            <div class="fs-title" id="fs-name">Camera</div>
+            <button class="fs-close" onclick="closeFullscreen()">✕ Close</button>
+        </div>
+        <div class="fs-stream">
+            <img id="fs-img" src="" alt="Stream">
+        </div>
+        <div class="button-row">
+            <button class="nav-btn" onclick="previousCamera()">◀ Previous</button>
+            <button class="nav-btn" onclick="nextCamera()">Next ▶</button>
+        </div>
+    </div>
+    
+    <script>
+        let cameras = [];
+        let currentIndex = -1;
+        
+        async function loadCameras() {
+            try {
+                const res = await fetch('/api/cameras');
+                cameras = await res.json();
+                render();
+                document.getElementById('status').textContent = `✓ ${cameras.length} cameras`;
+            } catch (e) {
+                console.error(e);
+                document.getElementById('status').textContent = '✗ Error';
+            }
+        }
+        
+        function render() {
+            const grid = document.getElementById('cameras');
+            grid.innerHTML = '';
+            
+            cameras.forEach((cam, idx) => {
+                const div = document.createElement('div');
+                div.className = 'camera';
+                
+                div.innerHTML = `
+                    <div class="camera-header">
+                        <div class="camera-name">${cam.name}</div>
+                        <div class="status ${cam.connected ? 'connected' : ''}"></div>
+                    </div>
+                    <div class="stream-container" onclick="event.stopPropagation(); openFullscreen(${idx})">
+                        <img src="/api/stream/${cam.id}?t=${Date.now()}" alt="${cam.name}" onerror="this.style.display='none'">
+                    </div>
+                    <div class="camera-controls">
+                        <button class="record-btn ${cam.recording ? 'recording' : ''}" onclick="event.stopPropagation(); toggleRecord(${cam.id})">
+                            ${cam.recording ? '⏹️ STOP' : '⏺️ REC'}
+                        </button>
+                    </div>
+                `;
+                
+                grid.appendChild(div);
+            });
+        }
+        
+        async function toggleRecord(camId) {
+            const action = cameras.find(c => c.id === camId)?.recording ? 'stop' : 'start';
+            try {
+                await fetch(`/api/record/${camId}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({action})
+                });
+                loadCameras();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        
+        function openFullscreen(idx) {
+            currentIndex = idx;
+            const cam = cameras[idx];
+            document.getElementById('fs-name').textContent = cam.name;
+            document.getElementById('fs-img').src = `/api/stream/${cam.id}?t=${Date.now()}`;
+            document.getElementById('fullscreen').classList.add('active');
+        }
+        
+        function closeFullscreen() {
+            document.getElementById('fullscreen').classList.remove('active');
+            currentIndex = -1;
+        }
+        
+        function previousCamera() {
+            if (cameras.length === 0) return;
+            currentIndex = (currentIndex - 1 + cameras.length) % cameras.length;
+            openFullscreen(currentIndex);
+        }
+        
+        function nextCamera() {
+            if (cameras.length === 0) return;
+            currentIndex = (currentIndex + 1) % cameras.length;
+            openFullscreen(currentIndex);
+        }
+        
+        loadCameras();
+        setInterval(loadCameras, 5000);
+    </script>
+</body>
+</html>
